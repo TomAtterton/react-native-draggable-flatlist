@@ -1,13 +1,14 @@
 import {
-  runOnJS,
+  scrollTo,
   useAnimatedReaction,
   useDerivedValue,
+  useScrollViewOffset,
   useSharedValue,
-} from "react-native-reanimated";
-import { DEFAULT_PROPS, SCROLL_POSITION_TOLERANCE } from "../constants";
-import { useProps } from "../context/propsContext";
-import { useAnimatedValues } from "../context/animatedValueContext";
-import { useRefs } from "../context/refContext";
+} from 'react-native-reanimated';
+import { DEFAULT_PROPS, SCROLL_POSITION_TOLERANCE } from '../constants';
+import { useProps } from '../context/propsContext';
+import { useAnimatedValues } from '../context/animatedValueContext';
+import { useRefs } from '../context/refContext';
 
 export function useAutoScroll() {
   const { flatlistRef } = useRefs();
@@ -18,13 +19,14 @@ export function useAutoScroll() {
   } = useProps();
 
   const {
-    scrollOffset,
     scrollViewSize,
     containerSize,
     activeCellSize,
     hoverOffset,
     activeIndexAnim,
   } = useAnimatedValues();
+
+  const scrollOffset = useScrollViewOffset(flatlistRef);
 
   const hoverScreenOffset = useDerivedValue(() => {
     return hoverOffset.value - scrollOffset.value;
@@ -36,8 +38,7 @@ export function useAutoScroll() {
 
   const isScrolledDown = useDerivedValue(() => {
     return (
-      scrollOffset.value + containerSize.value + SCROLL_POSITION_TOLERANCE >=
-      scrollViewSize.value
+      scrollOffset.value + containerSize.value + SCROLL_POSITION_TOLERANCE >= scrollViewSize.value
     );
   }, []);
 
@@ -58,10 +59,11 @@ export function useAutoScroll() {
     return distToBottomEdge.value <= autoscrollThreshold;
   }, []);
 
-  const scrollTarget = useSharedValue(0);
   const dragIsActive = useDerivedValue(() => {
     return activeIndexAnim.value >= 0;
   }, []);
+
+  const scrollTarget = useSharedValue(0);
 
   useAnimatedReaction(
     () => {
@@ -88,31 +90,18 @@ export function useAutoScroll() {
     return hasScrolledToTarget && isAtEdge && !isEdgeDisabled && cellIsActive;
   }, []);
 
-  function scrollToInternal(offset: number) {
-    if (flatlistRef && "current" in flatlistRef) {
-      flatlistRef.current?.scrollToOffset({ offset, animated: true });
-    }
-  }
-
   useDerivedValue(() => {
     if (!shouldAutoScroll.value) return;
 
-    const distFromEdge = isAtTopEdge.value
-      ? distToTopEdge.value
-      : distToBottomEdge.value;
+    const distFromEdge = isAtTopEdge.value ? distToTopEdge.value : distToBottomEdge.value;
     const speedPct = 1 - distFromEdge / autoscrollThreshold!;
     const offset = speedPct * autoscrollSpeed;
     const targetOffset = isAtTopEdge.value
       ? Math.max(0, scrollOffset.value - offset)
-      : Math.min(
-          scrollOffset.value + offset,
-          scrollViewSize.value - containerSize.value
-        );
+      : Math.min(scrollOffset.value + offset, scrollViewSize.value - containerSize.value);
 
     scrollTarget.value = targetOffset;
-    // Reanimated scrollTo is crashing on android. use 'regular' scrollTo until figured out.
-    // scrollTo(scrollViewRef, targetX, targetY, true);
-    runOnJS(scrollToInternal)(targetOffset);
+    scrollTo(flatlistRef, 0, targetOffset, true);
   }, []);
 
   return null;

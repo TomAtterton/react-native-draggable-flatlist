@@ -1,10 +1,8 @@
-import React, { useContext, useMemo, useRef, useState } from "react";
-import { ScrollView } from "react-native-gesture-handler";
-import Animated, { useSharedValue } from "react-native-reanimated";
+import React, { useContext, useMemo, useState } from 'react';
+import { ScrollView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedRef, useSharedValue } from 'react-native-reanimated';
 
-type NestableScrollContainerContextVal = ReturnType<
-  typeof useSetupNestableScrollContextValue
->;
+type NestableScrollContainerContextVal = ReturnType<typeof useSetupNestableScrollContextValue>;
 const NestableScrollContainerContext = React.createContext<
   NestableScrollContainerContextVal | undefined
 >(undefined);
@@ -16,16 +14,13 @@ function useSetupNestableScrollContextValue({
 }) {
   const [outerScrollEnabled, setOuterScrollEnabled] = useState(true);
   const scrollViewSize = useSharedValue(0);
-  const scrollableRefInner = useRef<ScrollView>(null);
-  const scrollableRef = forwardedRef || scrollableRefInner;
-  const outerScrollOffset = useSharedValue(0);
+  const scrollableRef = useAnimatedRef<Animated.ScrollView>();
   const containerSize = useSharedValue(0);
 
   const contextVal = useMemo(
     () => ({
       outerScrollEnabled,
       setOuterScrollEnabled,
-      outerScrollOffset,
       scrollViewSize,
       scrollableRef,
       containerSize,
@@ -60,7 +55,7 @@ export function useSafeNestableScrollContainerContext() {
   const value = useNestableScrollContainerContext();
   if (!value) {
     throw new Error(
-      "useSafeNestableScrollContainerContext must be called within a NestableScrollContainerContext.Provider"
+      'useSafeNestableScrollContainerContext must be called within a NestableScrollContainerContext.Provider'
     );
   }
   return value;

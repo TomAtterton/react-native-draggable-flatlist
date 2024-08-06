@@ -1,12 +1,14 @@
 import Animated, {
   runOnJS,
+  scrollTo,
   useAnimatedReaction,
   useDerivedValue,
+  useScrollViewOffset,
   useSharedValue,
-} from "react-native-reanimated";
-import { State as GestureState } from "react-native-gesture-handler";
-import { useSafeNestableScrollContainerContext } from "../context/nestableScrollContainerContext";
-import { SCROLL_POSITION_TOLERANCE } from "../constants";
+} from 'react-native-reanimated';
+import { State as GestureState } from 'react-native-gesture-handler';
+import { useSafeNestableScrollContainerContext } from '../context/nestableScrollContainerContext';
+import { SCROLL_POSITION_TOLERANCE } from '../constants';
 
 // This is mostly copied over from the main react-native-draggable-flatlist
 // useAutoScroll hook with a few notable exceptions:
@@ -24,12 +26,8 @@ export function useNestedAutoScroll(params: {
   isTouchActiveNative?: Animated.SharedValue<number>;
   panGestureState?: Animated.SharedValue<GestureState | number>;
 }) {
-  const {
-    outerScrollOffset,
-    containerSize,
-    scrollableRef,
-    scrollViewSize,
-  } = useSafeNestableScrollContainerContext();
+  const { containerSize, scrollableRef, scrollViewSize } = useSafeNestableScrollContainerContext();
+  const outerScrollOffset = useScrollViewOffset(scrollableRef);
 
   const DUMMY_VAL = useSharedValue(0);
 
@@ -62,7 +60,7 @@ export function useNestedAutoScroll(params: {
   }, [hoverScreenOffset]);
 
   const distToBottomEdge = useDerivedValue(() => {
-    const dist = containerSize.value - (hoverScreenOffset.value + activeCellSize.value)
+    const dist = containerSize.value - (hoverScreenOffset.value + activeCellSize.value);
     return Math.max(0, dist);
   }, [hoverScreenOffset, activeCellSize, containerSize]);
 
@@ -88,10 +86,6 @@ export function useNestedAutoScroll(params: {
     [activeCellSize]
   );
 
-  function scrollToInternal(y: number) {
-    scrollableRef.current?.scrollTo({ y, animated: true });
-  }
-
   useDerivedValue(() => {
     const isAtEdge = isAtTopEdge.value || isAtBottomEdge.value;
     const topDisabled = isAtTopEdge.value && isScrolledUp.value;
@@ -108,9 +102,7 @@ export function useNestedAutoScroll(params: {
       isTouchActiveNative.value &&
       !scrollInProgress;
 
-    const distFromEdge = isAtTopEdge.value
-      ? distToTopEdge.value
-      : distToBottomEdge.value;
+    const distFromEdge = isAtTopEdge.value ? distToTopEdge.value : distToBottomEdge.value;
     const speedPct = 1 - distFromEdge / autoscrollThreshold;
     const offset = speedPct * autoscrollSpeed;
     const targetOffset = isAtTopEdge.value
@@ -118,9 +110,7 @@ export function useNestedAutoScroll(params: {
       : outerScrollOffset.value + offset;
     if (shouldScroll) {
       scrollTarget.value = targetOffset;
-      // Reanimated scrollTo is crashing on android. use 'regular' scrollTo until figured out.
-      // scrollTo(scrollViewRef, 0, scrollTarget.value, true)
-      runOnJS(scrollToInternal)(targetOffset);
+      scrollTo(scrollableRef, 0, targetOffset, true);
     }
   }, [autoscrollSpeed, autoscrollThreshold, isDraggingCell]);
 
